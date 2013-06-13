@@ -23,57 +23,43 @@ module MiniRails
   end
 
   class RouteSet
-    class DSL
-      def self.draw_routes(&block)
-        new(&block).to_h
-      end
-
-      def initialize(&block)
-        @routes = {}
-        instance_eval(&block)
-      end
-
-      def to_h
-        @routes
-      end
-
-      private
-      def root(to: raise("must pass `to'"))
-        @routes['/'] = controller_action_to_proc(to)
-      end
-
-      def match(args)
-        path, controller_action = args.to_a.first
-        path = '/' + path unless path.start_with?('/')
-
-        @routes[path] = controller_action_to_proc(controller_action)
-      end
-
-      def controller_action_to_proc(controller_action)
-        if controller_action.is_a?(String)
-          controller_name, action_name = controller_action.split("#")
-
-          controller_class_name = "#{constantize(controller_name)}Controller"
-
-          lambda { |env|
-            Object.const_get(controller_class_name).action(action_name.intern).call(env)
-          }
-        else
-          controller_action
-        end
-      end
-
-      def constantize(string)
-        string.split("_").map(&:capitalize).join
-      end
-    end
-
     def initialize(&block)
-      @routes = DSL.draw_routes(&block)
+      @routes = {}
+      instance_eval(&block)
     end
 
     def to_h
       @routes
+    end
+
+    private
+    def root(to: raise("must pass `to'"))
+      @routes['/'] = controller_action_to_proc(to)
+    end
+
+    def match(args)
+      path, controller_action = args.to_a.first
+      path = '/' + path unless path.start_with?('/')
+
+      @routes[path] = controller_action_to_proc(controller_action)
+    end
+
+    def controller_action_to_proc(controller_action)
+      if controller_action.is_a?(String)
+        controller_name, action_name = controller_action.split("#")
+
+        controller_class_name = "#{constantize(controller_name)}Controller"
+
+        lambda { |env|
+          Object.const_get(controller_class_name).action(action_name.intern).call(env)
+        }
+      else
+        controller_action
+      end
+    end
+
+    def constantize(string)
+      string.split("_").map(&:capitalize).join
     end
   end
 
