@@ -23,7 +23,7 @@ module MiniRails
   end
 
   class RouteSet
-    class DSL < BasicObject
+    class DSL
       def self.draw_routes(&block)
         new(&block).to_h
       end
@@ -50,13 +50,13 @@ module MiniRails
       end
 
       def controller_action_to_proc(controller_action)
-        if controller_action.is_a?(::String)
+        if controller_action.is_a?(String)
           controller_name, action_name = controller_action.split("#")
 
           controller_class_name = "#{constantize(controller_name)}Controller"
 
-          ::Proc.new { |env|
-            ::Object.const_get(controller_class_name).action(action_name.intern).call(env)
+          lambda { |env|
+            Object.const_get(controller_class_name).action(action_name.intern).call(env)
           }
         else
           controller_action
@@ -99,12 +99,16 @@ module MiniRails
   end
 end
 
+require 'pp'
+
 module TestApp
   class Application < MiniRails::Application
     draw_routes do
       root to: "pages#index"
 
       match '/foo' => "pages#foo"
+
+      match 'env' => lambda { |env| [200, {}, [PP.pp(env, "")]] }
     end
   end
 end
