@@ -1,10 +1,10 @@
+require 'erb'
+
 module MiniRails
   class Application
     class << self
-      attr_reader :routes
-
-      def draw_routes(&block)
-        @routes = RouteSet.new(&block).to_h
+      def routes
+        @routes ||= RouteSet.new
       end
     end
 
@@ -14,7 +14,7 @@ module MiniRails
 
     def call(env)
       path = env["PATH_INFO"]
-      if @routes.has_key?(path)
+      if @routes.has_route?(path)
         @routes[path].call(env)
       else
         [404, {}, ["Not found!"]]
@@ -23,13 +23,20 @@ module MiniRails
   end
 
   class RouteSet
-    def initialize(&block)
+    def initialize
       @routes = {}
+    end
+
+    def draw(&block)
       instance_eval(&block)
     end
 
-    def to_h
-      @routes
+    def has_route?(path)
+      @routes.has_key?(path)
+    end
+
+    def [](path)
+      @routes[path]
     end
 
     private
@@ -51,7 +58,7 @@ module MiniRails
         controller_class_name = "#{constantize(controller_name)}Controller"
 
         lambda { |env|
-          Object.const_get(controller_class_name).action(action_name.intern).call(env)
+          Object.const_get(controller_class_name).new.action(action_name.intern).call(env)
         }
       else
         controller_action
@@ -64,23 +71,42 @@ module MiniRails
   end
 
   class Controller
-    def self.action(name)
+    def action(name)
       lambda { |env|
-        controller = new(env)
-        controller.send(name)
+        if respond_to?(name)
+          send(name)
 
-        [200, {}, controller.body]
+          unless @body
+            render name
+          end
+        elsif template_exists?(name)
+          render name
+        else
+          raise NoMethodError, "#{self.class} does not respond to `#{name}`"
+        end
+
+
+        [200, {}, @body]
       }
     end
 
-    attr_reader :body
-
-    def initialize(env)
-      @env = env
+    def render(template=nil, text: nil)
+      if text
+        @body = [text]
+      elsif template
+        @body = [ERB.new(File.read(template_name(template))).result]
+      else
+        raise "you must specify something to render"
+      end
     end
 
-    def render(text: raise("supply some text"))
-      @body = [text]
+    private
+    def template_exists?(name)
+      File.exists?(template_name(name))
+    end
+
+    def template_name(name)
+      "#{name}.html.erb"
     end
   end
 end

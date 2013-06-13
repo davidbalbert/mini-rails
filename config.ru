@@ -3,13 +3,16 @@ require './mini-rails'
 require 'pp'
 
 class TestApp < MiniRails::Application
-  draw_routes do
-    root to: "pages#index"
+end
 
-    match '/foo' => "pages#foo"
+TestApp.routes.draw do
+  root to: "pages#index"
 
-    match 'env' => lambda { |env| [200, {}, [PP.pp(env, "")]] }
-  end
+  match '/time' => "pages#time"
+  match '/date' => "pages#date"
+  match '/rand' => "pages#rand"
+
+  match 'env' => lambda { |env| [200, {}, [PP.pp(env, "")]] }
 end
 
 class PagesController < MiniRails::Controller
@@ -17,9 +20,17 @@ class PagesController < MiniRails::Controller
     render text: "Hello, world!"
   end
 
-  def foo
-    render text: "Hello, foo!"
+  def time
+    render :time
   end
+
+  # implicit render
+  def date
+  end
+
+  # rand will render even though we haven't defined the action
+  # def rand
+  # end
 end
 
 run TestApp.new
